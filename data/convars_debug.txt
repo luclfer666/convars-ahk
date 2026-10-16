@@ -1,0 +1,146 @@
+[2026-10-16 09:10:59] === convars.ahk started - convars=54 fov=F5 exit=F8 ===
+[2026-10-16 09:10:59] engine2.dll base=0x7FFF9E8F0000 size=9461760
+[2026-10-16 09:10:59] [FOV] '': string NOT found in any section
+[2026-10-16 09:10:59] [FOV] '': string NOT found in any section
+[2026-10-16 09:10:59] [FOV] r_aspectratio resolved @ 0x404282DDF98 (now=2.50)
+[2026-10-16 09:10:59] [FOV] gameinfo 'C:\Program Files (x86)\Steam\steamapps\common\Deadlock\game\citadel\gameinfo.gi': hero_fov=100 fov_desired=def: aspect=2.500000
+[2026-10-16 09:10:59] [Direct Lighting] 'r_directlighting' slot 0x7FFF9F1A50A8 convar 0x404282D4F10 value @ 0x404282D4F68 (now=1)
+[2026-10-16 09:10:59] [Direct Lighting] re-armed from settings
+[2026-10-16 09:10:59] [Shadows] 'r_shadows' slot 0x7FFF949D8FC8 convar 0x4047324A968 value @ 0x4047324A9C0 (now=1)
+[2026-10-16 09:10:59] [Shadows] re-armed from settings
+[2026-10-16 09:10:59] [Cull Bounce] 'lb_cull_onscreen_bounce_light_shadows' slot 0x7FFF949D9A58 convar 0x404732484E0 value @ 0x40473248538 (now=0)
+[2026-10-16 09:10:59] [Cull Bounce] re-armed from settings
+[2026-10-16 09:10:59] [Cull Empty Mixed] 'lb_shadow_map_cull_empty_mixed' slot 0x7FFF949D9DB8 convar 0x4047381B918 value @ 0x4047381B970 (now=0)
+[2026-10-16 09:10:59] [Cull Empty Mixed] re-armed from settings
+[2026-10-16 09:10:59] [Shadow Dist] 'csm_max_shadow_dist_override' slot 0x7FFF94947128 convar 0x4047324B808 value @ 0x4047324B860 (now=-1.000000)
+[2026-10-16 09:10:59] [Shadow Dist] re-armed from settings
+[2026-10-16 09:10:59] [Dyn Lights] 'lb_enable_dynamic_lights' slot 0x7FFF949D9B58 convar 0x4047381A958 value @ 0x4047381A9B0 (now=1)
+[2026-10-16 09:10:59] [Dyn Lights] re-armed from settings
+[2026-10-16 09:10:59] [Stationary] 'lb_enable_stationary_lights' slot 0x7FFF949D9B48 convar 0x4047381A8F0 value @ 0x4047381A948 (now=1)
+[2026-10-16 09:10:59] [Stationary] re-armed from settings
+[2026-10-16 09:10:59] [Sunlight] 'lb_enable_sunlight' slot 0x7FFF949D9D48 convar 0x4047381B630 value @ 0x4047381B688 (now=1)
+[2026-10-16 09:10:59] [Sunlight] re-armed from settings
+[2026-10-16 09:10:59] [Baked Shadows] 'lb_enable_baked_shadows' slot 0x7FFF949D9B78 convar 0x4047381AA28 value @ 0x4047381AA80 (now=1)
+[2026-10-16 09:10:59] [Baked Shadows] re-armed from settings
+[2026-10-16 09:10:59] [Mixed Shadows] 'lb_mixed_shadows' slot 0x7FFF949D9B88 convar 0x4047381AA90 value @ 0x4047381AAE8 (now=1)
+[2026-10-16 09:10:59] [Mixed Shadows] re-armed from settings
+[2026-10-16 09:10:59] [Max Lights] 'lb_max_visible_barn_lights_override' slot 0x7FFF949D9D78 convar 0x4047381B778 value @ 0x4047381B7D0 (now=-1)
+[2026-10-16 09:10:59] [Max Lights] re-armed from settings
+[2026-10-16 09:10:59] [Skybox] 'r_drawskybox' slot 0x7FFF9F1A5188 convar 0x404282D02D8 value @ 0x404282D0330 (now=1)
+[2026-10-16 09:10:59] [Skybox] re-armed from settings
+[2026-10-16 09:11:00] [Volume Fog] 'r_enable_volume_fog' slot 0x7FFF8880AB58 convar 0x404281E2F90 value @ 0x404281E2FE8 (now=1)
+[2026-10-16 09:11:00] [Volume Fog] re-armed from settings
+[2026-10-16 09:11:00] [Cubemap Fog] 'r_enable_cubemap_fog' slot 0x7FFF8880AB68 convar 0x404281E2FF8 value @ 0x404281E3050 (now=1)
+[2026-10-16 09:11:00] [Cubemap Fog] re-armed from settings
+[2026-10-16 09:11:00] [Grad Fog] 'r_enable_gradient_fog' slot 0x7FFF8880AB78 convar 0x404281E3060 value @ 0x404281E30B8 (now=1)
+[2026-10-16 09:11:00] [Grad Fog] re-armed from settings
+[2026-10-16 09:11:01] [DF FarField] 'r_citadel_distancefield_farfield_enable' slot 0x7FFF8880AD58 convar 0x404281E3BC8 value @ 0x404281E3C20 (now=1)
+[2026-10-16 09:11:01] [DF FarField] re-armed from settings
+[2026-10-16 09:11:01] [DF Down] 'r_citadel_distancefield_down_sample' slot 0x7FFF8880AD18 convar 0x404281E3A70 value @ 0x404281E3AC8 (now=1)
+[2026-10-16 09:11:01] [DF Down] re-armed from settings
+[2026-10-16 09:11:01] [DF Blur] 'r_citadel_distancefield_blur' slot 0x7FFF8880AD28 convar 0x404281E3AE8 value @ 0x404281E3B40 (now=1)
+[2026-10-16 09:11:01] [DF Blur] re-armed from settings
+[2026-10-16 09:11:02] [DF Dist] 'r_citadel_distancefield_max_distance' slot 0x7FFF8880AD08 convar 0x404281E3A08 value @ 0x404281E3A60 (now=2048.000000)
+[2026-10-16 09:11:02] [DF Dist] re-armed from settings
+[2026-10-16 09:11:02] [Force LOD] 'sc_force_lod_level' slot 0x7FFF949D8E60 convar 0x4047324A0D0 value @ 0x4047324A128 (now=-1)
+[2026-10-16 09:11:02] [Force LOD] re-armed from settings
+[2026-10-16 09:11:02] [Texture LOD] 'r_texture_lod_scale' slot 0x7FFF949D8E40 convar 0x4047324A000 value @ 0x4047324A058 (now=1.000000)
+[2026-10-16 09:11:02] [Texture LOD] re-armed from settings
+[2026-10-16 09:11:02] [Fallback LOD] 'r_fallback_texture_lod_scale' slot 0x7FFF949D8E30 convar 0x40473249F88 value @ 0x40473249FE0 (now=2.000000)
+[2026-10-16 09:11:02] [Fallback LOD] re-armed from settings
+[2026-10-16 09:11:02] [GPU Cull] 'r_citadel_gpu_culling_shadows' slot 0x7FFF8880AAF8 convar 0x404281E2D20 value @ 0x404281E2D78 (now=0)
+[2026-10-16 09:11:02] [GPU Cull] re-armed from settings
+[2026-10-16 09:11:03] [Cables] 'r_particle_cables_render' slot 0x7FFF93E5D668 convar 0x40473F301A8 value @ 0x40473F30200 (now=1)
+[2026-10-16 09:11:03] [Cables] re-armed from settings
+[2026-10-16 09:11:03] [Cable Shad] 'r_particle_cables_cast_shadows' slot 0x7FFF93E5D698 convar 0x40473F300D8 value @ 0x40473F30130 (now=1)
+[2026-10-16 09:11:03] [Cable Shad] re-armed from settings
+[2026-10-16 09:11:03] [NPR Outlines] 'r_citadel_npr_outlines' slot 0x7FFF8880AA78 convar 0x404281E71D0 value @ 0x404281E7228 (now=1)
+[2026-10-16 09:11:03] [NPR Outlines] re-armed from settings
+[2026-10-16 09:11:03] [Outline Dist] 'r_citadel_npr_outlines_max_dist' slot 0x7FFF8880AA68 convar 0x404281E7160 value @ 0x404281E71B8 (now=1000.000000)
+[2026-10-16 09:11:03] [Outline Dist] re-armed from settings
+[2026-10-16 09:11:04] [No Glow] 'citadel_player_glow_disabled' slot 0x7FFF887FD3D8 convar 0x404281E7238 value @ 0x404281E7290 (now=0)
+[2026-10-16 09:11:04] [No Glow] re-armed from settings
+[2026-10-16 09:11:04] [Shadow Path] 'sc_disable_shadow_fastpath' slot 0x7FFF949D8EB0 convar 0x4047324A2E8 value @ 0x4047324A340 (now=0)
+[2026-10-16 09:11:04] [Shadow Path] re-armed from settings
+[2026-10-16 09:11:04] [SS LOD] 'sc_screen_size_lod_scale_override' slot 0x7FFF949D8EC0 convar 0x4047324A350 value @ 0x4047324A3A8 (now=0.000010)
+[2026-10-16 09:11:04] [SS LOD] re-armed from settings
+[2026-10-16 09:11:04] [Light Cull] 'lb_shadow_map_culling' slot 0x7FFF949D9DA8 convar 0x4047381B8B0 value @ 0x4047381B908 (now=1)
+[2026-10-16 09:11:04] [Light Cull] re-armed from settings
+[2026-10-16 09:11:04] [No Lights] 'lb_enable_lights' slot 0x7FFF949D9A08 convar 0x404732482D8 value @ 0x40473248330 (now=1)
+[2026-10-16 09:11:04] [No Lights] re-armed from settings
+[2026-10-16 09:11:04] [Hair] 'r_render_hair' slot 0x7FFF949D95E0 convar 0x40473246D30 value @ 0x40473246D88 (now=0)
+[2026-10-16 09:11:04] [Hair] re-armed from settings
+[2026-10-16 09:11:04] [Hair Cull] 'r_haircull_percent' slot 0x7FFF949D9570 convar 0x40473246A58 value @ 0x40473246AB0 (now=100.000000)
+[2026-10-16 09:11:04] [Hair Cull] re-armed from settings
+[2026-10-16 09:11:04] [Uncap Exp] 'mat_tonemap_uncap_exposure' slot 0x7FFF949D97C8 convar 0x40473247820 value @ 0x40473247878 (now=0)
+[2026-10-16 09:11:04] [Uncap Exp] re-armed from settings
+[2026-10-16 09:11:04] [Pix Vis] 'r_pixelvisibility_partial' slot 0x7FFF949D5880 convar 0x40473249278 value @ 0x404732492D0 (now=701638400)
+[2026-10-16 09:11:04] [Pix Vis] re-armed from settings
+[2026-10-16 09:11:05] [No Tracers] 'r_drawtracers' slot 0x7FFF88E1A350 convar 0x40488377280 value @ 0x404883772D8 (now=0)
+[2026-10-16 09:11:05] [No Tracers] re-armed from settings
+[2026-10-16 09:11:05] [No Ropes] 'r_drawropes' slot 0x7FFF88E16668 convar 0x404883781A8 value @ 0x40488378200 (now=0)
+[2026-10-16 09:11:05] [No Ropes] re-armed from settings
+[2026-10-16 09:11:06] [No Ragdolls] 'cl_disable_ragdolls' slot 0x7FFF88DD23F8 convar 0x4048837E548 value @ 0x4048837E5A0 (now=1)
+[2026-10-16 09:11:06] [No Ragdolls] re-armed from settings
+[2026-10-16 09:11:06] [Part Dist] 'r_particle_max_draw_distance' slot 0x7FFF93E5CE10 convar 0x40473F31528 value @ 0x40473F31580 (now=300000.000000)
+[2026-10-16 09:11:06] [Part Dist] re-armed from settings
+[2026-10-16 09:11:06] [No Pix Vis] 'r_dopixelvisibility' slot 0x7FFF949D5890 convar 0x404732492E0 value @ 0x40473249338 (now=1)
+[2026-10-16 09:11:06] [No Pix Vis] re-armed from settings
+[2026-10-16 09:11:06] [No Decals] 'r_drawdecals' slot 0x7FFF9F1A5088 convar 0x404282D4E40 value @ 0x404282D4E98 (now=0)
+[2026-10-16 09:11:06] [No Decals] re-armed from settings
+[2026-10-16 09:11:06] [No Sun] 'r_rendersun' slot 0x7FFF9F1A5078 convar 0x404282D4DD8 value @ 0x404282D4E30 (now=1)
+[2026-10-16 09:11:06] [No Sun] re-armed from settings
+[2026-10-16 09:11:06] [Particles] 'r_drawparticles' slot 0x7FFF93E5CB08 convar 0x40473F30C38 value @ 0x40473F30C90 (now=1)
+[2026-10-16 09:11:06] [Particles] re-armed from settings
+[2026-10-16 09:11:06] [Post-process] 'r_postprocess_enable' slot 0x7FFF8880AB08 convar 0x404281E2D88 value @ 0x404281E2DE0 (now=1)
+[2026-10-16 09:11:06] [Post-process] re-armed from settings
+[2026-10-16 09:11:06] [Max Envmaps] 'lb_max_visible_envmaps_override' slot 0x7FFF949D9D68 convar 0x4047381B710 value @ 0x4047381B768 (now=-1)
+[2026-10-16 09:11:06] [Max Envmaps] re-armed from settings
+[2026-10-16 09:11:06] attached to pid 11824
+[2026-10-16 09:11:06] [Direct Lighting] orig=1 target=0
+[2026-10-16 09:11:06] [Shadows] orig=1 target=0
+[2026-10-16 09:11:06] [Cull Bounce] orig=0 target=1
+[2026-10-16 09:11:06] [Cull Empty Mixed] orig=0 target=1
+[2026-10-16 09:11:06] [Shadow Dist] orig=-1.000000 target=600.0
+[2026-10-16 09:11:06] [Dyn Lights] orig=1 target=0
+[2026-10-16 09:11:06] [Stationary] orig=1 target=0
+[2026-10-16 09:11:06] [Sunlight] orig=1 target=0
+[2026-10-16 09:11:06] [Baked Shadows] orig=1 target=0
+[2026-10-16 09:11:06] [Mixed Shadows] orig=1 target=0
+[2026-10-16 09:11:06] [Max Lights] orig=-1 target=8
+[2026-10-16 09:11:06] [Skybox] orig=1 target=0
+[2026-10-16 09:11:06] [Volume Fog] orig=1 target=0
+[2026-10-16 09:11:06] [Cubemap Fog] orig=1 target=0
+[2026-10-16 09:11:06] [Grad Fog] orig=1 target=0
+[2026-10-16 09:11:06] [DF FarField] orig=1 target=0
+[2026-10-16 09:11:06] [DF Down] orig=1 target=2
+[2026-10-16 09:11:06] [DF Blur] orig=1 target=0
+[2026-10-16 09:11:06] [DF Dist] orig=2048.000000 target=512.0
+[2026-10-16 09:11:06] [Force LOD] orig=-1 target=2
+[2026-10-16 09:11:06] [Texture LOD] orig=1.000000 target=0.5
+[2026-10-16 09:11:06] [Fallback LOD] orig=2.000000 target=0.5
+[2026-10-16 09:11:06] [GPU Cull] orig=0 target=1
+[2026-10-16 09:11:06] [Cables] orig=1 target=0
+[2026-10-16 09:11:06] [Cable Shad] orig=1 target=0
+[2026-10-16 09:11:06] [NPR Outlines] orig=1 target=0
+[2026-10-16 09:11:06] [Outline Dist] orig=1000.000000 target=0.0
+[2026-10-16 09:11:06] [No Glow] orig=0 target=1
+[2026-10-16 09:11:06] [Shadow Path] orig=0 target=1
+[2026-10-16 09:11:06] [SS LOD] orig=0.000010 target=0.5
+[2026-10-16 09:11:06] [Light Cull] orig=1 target=1
+[2026-10-16 09:11:06] [No Lights] orig=1 target=0
+[2026-10-16 09:11:06] [Hair] orig=0 target=0
+[2026-10-16 09:11:06] [Hair Cull] orig=100.000000 target=0.0
+[2026-10-16 09:11:06] [Uncap Exp] orig=0 target=1
+[2026-10-16 09:11:06] [Pix Vis] orig=701638400 target=1
+[2026-10-16 09:11:06] [No Tracers] orig=0 target=0
+[2026-10-16 09:11:06] [No Ropes] orig=0 target=0
+[2026-10-16 09:11:06] [No Ragdolls] orig=1 target=1
+[2026-10-16 09:11:06] [Part Dist] orig=300000.000000 target=3000.0
+[2026-10-16 09:11:06] [No Pix Vis] orig=1 target=0
+[2026-10-16 09:11:06] [No Decals] orig=0 target=0
+[2026-10-16 09:11:06] [No Sun] orig=1 target=0
+[2026-10-16 09:11:06] [Particles] orig=1 target=0
+[2026-10-16 09:11:06] [Post-process] orig=1 target=0
+[2026-10-16 09:11:06] [Max Envmaps] orig=-1 target=2
+[2026-10-16 09:13:07] [Max Envmaps] OFF

@@ -1,0 +1,1019 @@
+﻿#NoEnv
+SetWorkingDir %A_ScriptDir%
+#SingleInstance force
+ListLines Off
+SetBatchLines, -1
+SetKeyDelay, -1, -1
+#KeyHistory 0
+
+Process, Priority, , BelowNormal
+DllCall("Winmm\timeBeginPeriod", "UInt", 1)
+
+CommandLine := DllCall("GetCommandLine", "Str")
+If !(A_IsAdmin || RegExMatch(CommandLine, " /restart(?!\S)")) {
+    Try {
+        If (A_IsCompiled)
+            Run *RunAs "%A_ScriptFullPath%" /restart
+        Else
+            Run *RunAs "%A_AhkPath%" /restart "%A_ScriptFullPath%"
+    }
+    ExitApp
+}
+
+#include %A_ScriptDir%\data\classMemory.ahk
+_ClassMemory.setSeDebugPrivilege()
+
+gameEXE := "ahk_exe deadlock.exe"
+engineDLL := "engine2.dll"
+clientDLL := "client.dll"
+sceneDLL := "scenesystem.dll"
+
+LogFile := A_ScriptDir "\data\convars_debug.txt"
+SettingsFile := A_ScriptDir "\data\settings.json"
+
+DirectLightPat := "48 8B 05 ?? ?? ?? ?? 83 FA 01 BA 45 0C 90 1F 45 8B C5 74 ?? 80 78 58 00 41 0F 95 C0 E8 ?? ?? ?? ??"
+SkyboxPat := "48 8B 05 ?? ?? ?? ?? 48 8D 8E ?? ?? ?? ?? 45 8B C5 BA 95 45 7B 98 80 78 58 00 41 0F 95 C0 E8 ?? ?? ?? ??"
+AspectPat := "48 83 EC 28 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 0F 57 C9 0F 2F C1 76 ?? 48 8D 0D ?? ?? ?? ?? 48 83 C4 28 E9"
+
+VALUE_OFF := 0x58
+
+FovPresets := [90, 100, 105, 110, 115, 120, 125, 130, 135, 140, 150, 165]
+AspectPresets := [0, 133, 150, 160, 178, 200, 235, 300]
+
+cfg := { fov_enabled: false, fov: 120, aspect: 150, directlighting_off: false, skybox_off: false
+       , cullbounce_on: false, cullemptymixed_on: false
+       , key_fov: "F5", key_directlighting: "F6", key_skybox: "F7", key_cullbounce: "", key_cullemptymixed: "", key_exit: "F8" }
+
+DL := { module: engineDLL, tag: "DirectLight", name: "r_directlighting", pat: DirectLightPat, slot: 0, value: 0, orig: 0, origSet: false, resolved: false, enabled: false, forced: 0 }
+SB := { module: engineDLL, tag: "Skybox", name: "r_drawskybox", pat: SkyboxPat, slot: 0, value: 0, orig: 0, origSet: false, resolved: false, enabled: false, forced: 0 }
+CB := { module: sceneDLL, tag: "CullBounce", name: "lb_cull_onscreen_bounce_light_shadows", pat: "", slot: 0, value: 0, orig: 0, origSet: false, resolved: false, enabled: false, forced: 0 }
+CE := { module: sceneDLL, tag: "CullEmptyMixed", name: "lb_shadow_map_cull_empty_mixed", pat: "", slot: 0, value: 0, orig: 0, origSet: false, resolved: false, enabled: false, forced: 0 }
+
+HeroFov := { name: "citadel_camera_hero_fov", pVal: 0, pMin: 0, pMax: 0, origMin: 0, origMax: 0, patched: false, resolved: false }
+DesiredFov := { name: "fov_desired", pVal: 0, pMin: 0, pMax: 0, origMin: 0, origMax: 0, patched: false, resolved: false }
+AspectAddr := 0
+FovResolved := false
+FovApplied := false
+
+giHero := 90.0
+giDesired := 75.0
+giAspect := 0.0
+giParsed := false
+
+FovItems := []
+AspectItems := []
+
+trayX := ""
+trayY := ""
+CoordMode, Mouse, Screen
+
+mem := ""
+lastPID := 0
+nextRetry := 0
+engineBase := 0
+engineSize := 0
+
+FormatHex(n)
+{
+    if (n = "")
+        return "(null)"
+    return "0x" Format("{:X}", n)
+}
+
+LogConvar(msg)
+{
+    global LogFile
+    FormatTime, ts, , yyyy-MM-dd HH:mm:ss
+    FileAppend, [%ts%] %msg%`n, %LogFile%
+}
+
+InEngine(addr)
+{
+    global engineBase, engineSize
+    return (engineSize > 0 && addr >= engineBase && addr < engineBase + engineSize)
+}
+
+JsonGet(txt, key, def)
+{
+    if RegExMatch(txt, "m)""\Q" key "\E""\s*:\s*(?:""(?<Str>[^""]*)""|(?<Val>true|false|-?[0-9.]+))", m)
+        return (mVal != "") ? mVal : mStr
+    return def
+}
+
+JsonBool(txt, key, def)
+{
+    v := JsonGet(txt, key, "")
+    if (v = "")
+        return def
+    return (v = "true" || v = "1")
+}
+
+JsonNum(txt, key, def)
+{
+    v := JsonGet(txt, key, "")
+    if v is not number
+        return def
+    return v + 0
+}
+
+SettingsLoad()
+{
+    global cfg, SettingsFile
+    FileRead, txt, %SettingsFile%
+    if (ErrorLevel)
+    {
+        SettingsSave()
+        return
+    }
+    cfg.fov_enabled := JsonBool(txt, "fov_enabled", cfg.fov_enabled)
+    cfg.fov := Round(JsonNum(txt, "fov", cfg.fov))
+    cfg.aspect := Round(JsonNum(txt, "aspect", cfg.aspect / 100.0) * 100)
+    cfg.directlighting_off := JsonBool(txt, "directlighting_off", cfg.directlighting_off)
+    cfg.skybox_off := JsonBool(txt, "skybox_off", cfg.skybox_off)
+    cfg.cullbounce_on := JsonBool(txt, "cullbounce_on", cfg.cullbounce_on)
+    cfg.cullemptymixed_on := JsonBool(txt, "cullemptymixed_on", cfg.cullemptymixed_on)
+    cfg.key_fov := JsonGet(txt, "key_fov", cfg.key_fov)
+    cfg.key_directlighting := JsonGet(txt, "key_directlighting", cfg.key_directlighting)
+    cfg.key_skybox := JsonGet(txt, "key_skybox", cfg.key_skybox)
+    cfg.key_cullbounce := JsonGet(txt, "key_cullbounce", cfg.key_cullbounce)
+    cfg.key_cullemptymixed := JsonGet(txt, "key_cullemptymixed", cfg.key_cullemptymixed)
+    cfg.key_exit := JsonGet(txt, "key_exit", cfg.key_exit)
+
+    if (cfg.fov < 40)
+        cfg.fov := 40
+    if (cfg.fov > 165)
+        cfg.fov := 165
+    if (cfg.aspect < 0)
+        cfg.aspect := 0
+    if (cfg.aspect > 300)
+        cfg.aspect := 300
+}
+
+SettingsSave()
+{
+    global cfg, SettingsFile
+    j := "{`n"
+    j .= "  ""fov_enabled"": " (cfg.fov_enabled ? "true" : "false") ",`n"
+    j .= "  ""fov"": " cfg.fov ",`n"
+    j .= "  ""aspect"": " Format("{:.2f}", cfg.aspect / 100.0) ",`n"
+    j .= "  ""directlighting_off"": " (cfg.directlighting_off ? "true" : "false") ",`n"
+    j .= "  ""skybox_off"": " (cfg.skybox_off ? "true" : "false") ",`n"
+    j .= "  ""cullbounce_on"": " (cfg.cullbounce_on ? "true" : "false") ",`n"
+    j .= "  ""cullemptymixed_on"": " (cfg.cullemptymixed_on ? "true" : "false") ",`n"
+    j .= "  ""key_fov"": """ cfg.key_fov """,`n"
+    j .= "  ""key_directlighting"": """ cfg.key_directlighting """,`n"
+    j .= "  ""key_skybox"": """ cfg.key_skybox """,`n"
+    j .= "  ""key_cullbounce"": """ cfg.key_cullbounce """,`n"
+    j .= "  ""key_cullemptymixed"": """ cfg.key_cullemptymixed """,`n"
+    j .= "  ""key_exit"": """ cfg.key_exit """`n"
+    j .= "}`n"
+    FileDelete, %SettingsFile%
+    FileAppend, %j%, %SettingsFile%
+}
+
+InitEngine()
+{
+    global mem, engineBase, engineSize, engineDLL
+    modInfo := ""
+    engineBase := mem.getModuleBaseAddress(engineDLL, modInfo)
+    if (engineBase > 0)
+        engineSize := modInfo.SizeOfImage
+    else
+    {
+        engineBase := 0
+        engineSize := 0
+        LogConvar("engine2.dll not loaded yet")
+        return false
+    }
+    LogConvar("engine2.dll base=" FormatHex(engineBase) " size=" engineSize)
+    return true
+}
+
+ReadSections(base)
+{
+    global mem
+    secs := []
+    e_lfanew := mem.read(base + 0x3C, "UInt")
+    if (e_lfanew = "" || e_lfanew <= 0 || e_lfanew > 0x1000)
+        return secs
+    nt := base + e_lfanew
+    nSec := mem.read(nt + 6, "UShort")
+    optSize := mem.read(nt + 20, "UShort")
+    tbl := nt + 24 + optSize
+    Loop, %nSec%
+    {
+        s := tbl + (A_Index - 1) * 40
+        vsize := mem.read(s + 8, "UInt")
+        va := mem.read(s + 12, "UInt")
+        ch := mem.read(s + 36, "UInt")
+        secs.Push({ va: va, vsize: vsize, exec: (ch & 0x20000000) != 0 })
+    }
+    return secs
+}
+
+ResolveConVar(byRef cv)
+{
+    global mem, engineBase, engineDLL, VALUE_OFF
+
+    cv.resolved := false
+    cv.value := 0
+    cv.orig := 0
+    cv.origSet := false
+
+    if (!IsObject(mem) || !engineBase)
+    {
+        LogConvar("[" cv.tag "] engine not ready")
+        return false
+    }
+
+    pattern := mem.hexStringToPattern(cv.pat)
+    if (!IsObject(pattern))
+    {
+        LogConvar("[" cv.tag "] bad pattern (hexStringToPattern failed)")
+        return false
+    }
+
+    site := mem.modulePatternScan(engineDLL, pattern*)
+    if (!site || site <= 0)
+    {
+        LogConvar("[" cv.tag "] site NOT FOUND — pattern stale after game patch (ret=" site ")")
+        return false
+    }
+    LogConvar("[" cv.tag "] site found @ " FormatHex(site))
+
+    disp := mem.read(site + 3, "Int")
+    if (disp = "")
+    {
+        LogConvar("[" cv.tag "] read disp @ site+3 failed")
+        return false
+    }
+    slot := site + 7 + disp
+
+    if (!InEngine(slot))
+    {
+        LogConvar("[" cv.tag "] slot " FormatHex(slot) " outside engine2.dll — stale offset")
+        return false
+    }
+
+    nCached := mem.read(slot, "Int64")
+    if (nCached = "" || !nCached)
+    {
+        LogConvar("[" cv.tag "] cached ptr @ " FormatHex(slot) " = " FormatHex(nCached) " (null/unreadable)")
+        return false
+    }
+
+    cv.slot := slot
+    cv.value := nCached + VALUE_OFF
+    cv.resolved := true
+
+    LogConvar("[" cv.tag "] cached ptr @ " FormatHex(slot) " = " FormatHex(nCached))
+    cur := mem.read(cv.value, "UChar")
+    LogConvar("[" cv.tag "] '" cv.name "' value @ " FormatHex(cv.value) " (now=" cur ")")
+    return true
+}
+
+TickConVar(byRef cv)
+{
+    global mem, VALUE_OFF
+
+    if (!IsObject(mem) || !cv.resolved)
+        return
+
+    nCached := mem.read(cv.slot, "Int64")
+    if (nCached = "" || !nCached)
+        return
+    cv.value := nCached + VALUE_OFF
+
+    if (!cv.enabled)
+        return
+
+    if (!cv.origSet)
+    {
+        orig := mem.read(cv.value, "UChar")
+        if (orig = "")
+        {
+            LogConvar("[" cv.tag "] read value @ " FormatHex(cv.value) " failed err=" A_LastError)
+            return
+        }
+        cv.orig := orig
+        cv.origSet := true
+        cv.forced := 0
+    }
+
+    cur := mem.read(cv.value, "UChar")
+    if (cur = "")
+        return
+    if (cur != 0)
+    {
+        if (mem.write(cv.value, 0, "UChar"))
+            cv.forced += 1
+        else
+            LogConvar("[" cv.tag "] WriteProcessMemory failed @ " FormatHex(cv.value) " err=" A_LastError)
+    }
+}
+
+RestoreConVar(byRef cv)
+{
+    global mem, VALUE_OFF
+
+    if (!IsObject(mem) || !cv.resolved)
+        return
+
+    nCached := mem.read(cv.slot, "Int64")
+    if (nCached = "" || !nCached)
+        return
+    cv.value := nCached + VALUE_OFF
+
+    if (cv.origSet)
+    {
+        if (!mem.write(cv.value, cv.orig, "UChar"))
+            LogConvar("[" cv.tag "] restore write failed @ " FormatHex(cv.value) " err=" A_LastError)
+    }
+    cv.origSet := false
+}
+
+ApplyToggle(byRef cv)
+{
+    if (!cv.resolved)
+        ResolveConVar(cv)
+    if (!cv.resolved)
+    {
+        LogConvar("[" cv.tag "] not resolved — toggle ignored")
+        return
+    }
+
+    if (cv.enabled)
+    {
+        RestoreConVar(cv)
+        cv.enabled := false
+    }
+    else
+        cv.enabled := true
+}
+
+FindStringsInModule(base, secs, name)
+{
+    global mem
+    list := []
+    pat := mem.stringToPattern(name, "UTF-8", true)
+    if (!IsObject(pat))
+        return list
+    nLen := mem.getNeedleFromAOBPattern(mask, needle, pat*)
+    for i, sec in secs
+    {
+        if (sec.vsize < nLen)
+            continue
+        if (!mem.readRaw(base + sec.va, buf, sec.vsize))
+            continue
+        off := 0
+        Loop
+        {
+            r := mem.bufferScanForMaskedPattern(&buf, sec.vsize, mask, &needle, off)
+            if (r < 0)
+                break
+            if (r = 0 || NumGet(buf, r - 1, "UChar") = 0)
+                list.Push(base + sec.va + r)
+            off := r + 1
+            if (list.Length() >= 8)
+                return list
+        }
+    }
+    return list
+}
+
+FindLeaTo(byRef buf, bufSize, secVA, target, op)
+{
+    global mem
+    list := []
+    chunk := 0x10000
+    mask := "xxx??xx"
+    VarSetCapacity(needle, 7, 0)
+    NumPut(0x48, needle, 0, "UChar")
+    NumPut(0x8D, needle, 1, "UChar")
+    NumPut(op, needle, 2, "UChar")
+
+    c0 := 0
+    while (c0 + 7 <= bufSize)
+    {
+        c1 := c0 + chunk
+        if (c1 > bufSize)
+            c1 := bufSize
+        h0 := ((target - (secVA + c0 + 7)) >> 16) & 0xFFFF
+        h1 := ((target - (secVA + c1 - 1 + 7)) >> 16) & 0xFFFF
+        end := c1 + 6
+        if (end > bufSize)
+            end := bufSize
+
+        Loop, % (h0 = h1) ? 1 : 2
+        {
+            h := (A_Index = 1) ? h0 : h1
+            NumPut(h & 0xFF, needle, 5, "UChar")
+            NumPut((h >> 8) & 0xFF, needle, 6, "UChar")
+            off := c0
+            Loop
+            {
+                r := mem.bufferScanForMaskedPattern(&buf, end, mask, &needle, off)
+                if (r < 0)
+                    break
+                disp := NumGet(buf, r + 3, "Int")
+                if (secVA + r + 7 + disp = target)
+                    list.Push(r)
+                off := r + 1
+            }
+        }
+        c0 := c1
+    }
+    return list
+}
+
+ResolveFovConVar(byRef cv, base, secs)
+{
+    global mem
+    cv.resolved := false
+
+    strs := FindStringsInModule(base, secs, cv.name)
+    if (!strs.Length())
+    {
+        LogConvar("[FOV] '" cv.name "': string NOT found in any section")
+        return false
+    }
+
+    foundNameLea := false
+    for i, sec in secs
+    {
+        if (!sec.exec || sec.vsize < 40)
+            continue
+        if (!mem.readRaw(base + sec.va, buf, sec.vsize))
+            continue
+        secVA := base + sec.va
+
+        for k, target in strs
+        {
+            leas := FindLeaTo(buf, sec.vsize, secVA, target, 0x15)
+            for n, pos in leas
+            {
+                foundNameLea := true
+                j := 7
+                while (j <= 32)
+                {
+                    if (pos + j + 7 > sec.vsize)
+                        break
+                    if (NumGet(buf, pos + j, "UChar") = 0x48 && NumGet(buf, pos + j + 1, "UChar") = 0x8D && NumGet(buf, pos + j + 2, "UChar") = 0x0D)
+                    {
+                        disp2 := NumGet(buf, pos + j + 3, "Int")
+                        mirror := secVA + pos + j + 7 + disp2
+                        state := mem.read(mirror + 8, "Int64")
+                        if (state != "" && state)
+                        {
+                            pVal := mem.read(state + 0x08, "Int64")
+                            pMin := mem.read(state + 0x10, "Int64")
+                            pMax := mem.read(state + 0x18, "Int64")
+                            if (pVal && pMin && pMax)
+                            {
+                                cv.pVal := pVal
+                                cv.pMin := pMin
+                                cv.pMax := pMax
+                                cv.patched := false
+                                cv.resolved := true
+                                LogConvar("[FOV] '" cv.name "' resolved (value=" Format("{:.1f}", mem.read(pVal, "Float")) " min=" Format("{:.1f}", mem.read(pMin, "Float")) " max=" Format("{:.1f}", mem.read(pMax, "Float")) ") lea @ " FormatHex(secVA + pos) " value @ " FormatHex(pVal))
+                                return true
+                            }
+                        }
+                    }
+                    j += 1
+                }
+            }
+        }
+    }
+
+    LogConvar("[FOV] '" cv.name "': FAILED (" (foundNameLea ? "name lea found, no valid mirror" : "no lea rdx -> string") ")")
+    return false
+}
+
+ResolveAspect()
+{
+    global mem, engineDLL, AspectPat, AspectAddr, VALUE_OFF
+    AspectAddr := 0
+
+    pattern := mem.hexStringToPattern(AspectPat)
+    match := mem.modulePatternScan(engineDLL, pattern*)
+    if (!match || match <= 0)
+    {
+        LogConvar("[FOV] r_aspectratio NOT FOUND (aspect off, ret=" match ")")
+        return false
+    }
+
+    obj1 := match + 11 + mem.read(match + 7, "Int")
+    obj2 := match + 31 + mem.read(match + 27, "Int")
+    get1 := match + 16 + mem.read(match + 12, "Int")
+    get2 := match + 40 + mem.read(match + 36, "Int")
+    if (obj1 != obj2 || get1 != get2)
+    {
+        LogConvar("[FOV] r_aspectratio self-check failed @ " FormatHex(match))
+        return false
+    }
+
+    state := mem.read(obj1 + 8, "Int64")
+    if (state = "" || !state)
+    {
+        LogConvar("[FOV] r_aspectratio state null @ " FormatHex(obj1 + 8))
+        return false
+    }
+
+    AspectAddr := state + VALUE_OFF
+    LogConvar("[FOV] r_aspectratio resolved @ " FormatHex(AspectAddr) " (now=" Format("{:.2f}", mem.read(AspectAddr, "Float")) ")")
+    return true
+}
+
+ParseGameInfo()
+{
+    global mem, clientDLL, giHero, giDesired, giAspect, giParsed
+    if (giParsed)
+        return
+    giParsed := true
+
+    info := ""
+    mem.getModuleBaseAddress(clientDLL, info)
+    path := info.Name
+    if (path = "")
+    {
+        LogConvar("[FOV] gameinfo — client.dll path failed")
+        return
+    }
+    SplitPath, path, , dir
+    gi := ""
+    Loop, 8
+    {
+        if FileExist(dir "\gameinfo.gi")
+        {
+            gi := dir "\gameinfo.gi"
+            break
+        }
+        SplitPath, dir, , parent
+        if (parent = "" || parent = dir)
+            break
+        dir := parent
+    }
+    if (gi = "")
+    {
+        LogConvar("[FOV] gameinfo not found near '" path "' — engine defaults")
+        return
+    }
+
+    FileRead, txt, %gi%
+    hasHero := false, hasDesired := false, hasAspect := false
+    Loop, Parse, txt, `n, `r
+    {
+        if RegExMatch(A_LoopField, "^\s*citadel_camera_hero_fov\s*""([^""]+)""", m)
+            giHero := m1 + 0, hasHero := true
+        else if RegExMatch(A_LoopField, "^\s*fov_desired\s*""([^""]+)""", m)
+            giDesired := m1 + 0, hasDesired := true
+        else if RegExMatch(A_LoopField, "^\s*r_aspectratio\s*""([^""]+)""", m)
+            giAspect := m1 + 0, hasAspect := true
+    }
+    LogConvar("[FOV] gameinfo '" gi "': hero_fov=" (hasHero ? "" : "def:") giHero " fov_desired=" (hasDesired ? "" : "def:") giDesired " aspect=" (hasAspect ? "" : "native:") giAspect)
+}
+
+ResolveFov()
+{
+    global mem, clientDLL, HeroFov, DesiredFov, FovResolved, FovApplied
+    FovResolved := false
+    FovApplied := false
+
+    base := mem.getModuleBaseAddress(clientDLL)
+    if (base <= 0)
+    {
+        LogConvar("[FOV] client.dll not loaded")
+        return false
+    }
+    secs := ReadSections(base)
+    if (!secs.Length())
+    {
+        LogConvar("[FOV] client.dll: PE sections unreadable")
+        return false
+    }
+
+    ResolveFovConVar(HeroFov, base, secs)
+    ResolveFovConVar(DesiredFov, base, secs)
+    ResolveAspect()
+    ParseGameInfo()
+
+    FovResolved := HeroFov.resolved || DesiredFov.resolved
+    return FovResolved
+}
+
+FovPatchBounds(byRef cv, lo, hi)
+{
+    global mem
+    if (!cv.resolved || cv.patched)
+        return
+    cv.origMin := mem.read(cv.pMin, "Float")
+    cv.origMax := mem.read(cv.pMax, "Float")
+    mem.write(cv.pMin, lo, "Float")
+    mem.write(cv.pMax, hi, "Float")
+    cv.patched := true
+}
+
+FovRestoreBounds(byRef cv)
+{
+    global mem
+    if (!cv.patched)
+        return
+    mem.write(cv.pMin, cv.origMin, "Float")
+    mem.write(cv.pMax, cv.origMax, "Float")
+    cv.patched := false
+}
+
+FovWriteValue(byRef cv, val)
+{
+    global mem
+    if (!cv.resolved)
+        return
+    cur := mem.read(cv.pVal, "Float")
+    if (cur = "" || Abs(cur - val) >= 0.01)
+        mem.write(cv.pVal, val, "Float")
+}
+
+WriteAspect(val)
+{
+    global mem, AspectAddr
+    if (!AspectAddr)
+        return
+    cur := mem.read(AspectAddr, "Float")
+    if (cur = "" || Abs(cur - val) >= 0.005)
+        mem.write(AspectAddr, val, "Float")
+}
+
+TickFov()
+{
+    global mem, cfg, HeroFov, DesiredFov, FovResolved, FovApplied, giAspect
+    if (!IsObject(mem) || !FovResolved)
+        return
+
+    if (!cfg.fov_enabled)
+    {
+        if (FovApplied)
+            FovOff()
+        return
+    }
+
+    FovPatchBounds(HeroFov, 40.0, 200.0)
+    FovPatchBounds(DesiredFov, 40.0, 200.0)
+
+    target := cfg.fov + 0.0
+    FovWriteValue(HeroFov, target)
+    FovWriteValue(DesiredFov, target)
+    WriteAspect(cfg.aspect > 0 ? cfg.aspect / 100.0 : giAspect + 0.0)
+    FovApplied := true
+}
+
+FovOff()
+{
+    global HeroFov, DesiredFov, FovApplied, giHero, giDesired, giAspect
+    FovRestoreBounds(HeroFov)
+    FovRestoreBounds(DesiredFov)
+    FovWriteValue(HeroFov, giHero + 0.0)
+    FovWriteValue(DesiredFov, giDesired + 0.0)
+    WriteAspect(giAspect + 0.0)
+    FovApplied := false
+}
+
+ResetState()
+{
+    global DL, SB, HeroFov, DesiredFov, AspectAddr, FovResolved, FovApplied, giParsed
+    DL.resolved := false, DL.enabled := false, DL.origSet := false, DL.slot := 0, DL.value := 0, DL.orig := 0, DL.forced := 0
+    SB.resolved := false, SB.enabled := false, SB.origSet := false, SB.slot := 0, SB.value := 0, SB.orig := 0, SB.forced := 0
+    HeroFov.resolved := false, HeroFov.patched := false
+    DesiredFov.resolved := false, DesiredFov.patched := false
+    AspectAddr := 0
+    FovResolved := false
+    FovApplied := false
+    giParsed := false
+}
+
+ToggleDL()
+{
+    global DL, cfg
+    ApplyToggle(DL)
+    cfg.directlighting_off := DL.enabled
+    SettingsSave()
+    UpdateTray()
+}
+
+ToggleSB()
+{
+    global SB, cfg
+    ApplyToggle(SB)
+    cfg.skybox_off := SB.enabled
+    SettingsSave()
+    UpdateTray()
+}
+
+ToggleFov()
+{
+    global cfg
+    cfg.fov_enabled := !cfg.fov_enabled
+    SettingsSave()
+    UpdateTray()
+}
+
+SetFov(val)
+{
+    global cfg
+    cfg.fov := val
+    cfg.fov_enabled := true
+    SettingsSave()
+    UpdateTray()
+}
+
+SetAspect(val)
+{
+    global cfg
+    cfg.aspect := val
+    cfg.fov_enabled := true
+    SettingsSave()
+    UpdateTray()
+}
+
+AspectLabel(a)
+{
+    return (a <= 0) ? "Native" : Format("{:.2f}", a / 100.0)
+}
+
+TrayIconMsg(wParam, lParam)
+{
+    global trayX, trayY, trayOpen, activeMenu
+    if (lParam = 0x205 || lParam = 0x202)
+    {
+        MouseGetPos, trayX, trayY
+        trayOpen := true
+        activeMenu := "Tray"
+        SetTimer, ShowTrayMenu, -1
+        return 0
+    }
+    return 0
+}
+
+ReshowTray()
+{
+    global trayOpen, activeMenu
+    if (!trayOpen)
+        return
+    if (activeMenu = "" || activeMenu = "Tray")
+        return
+    SetTimer, ReshowMenu, -10
+}
+
+BuildTrayMenu()
+{
+    global cfg, FovPresets, AspectPresets, FovItems, AspectItems
+
+    FovItems := []
+    inserted := false
+    for i, v in FovPresets
+    {
+        if (!inserted && cfg.fov < v)
+            FovItems.Push(cfg.fov), inserted := true
+        if (v = cfg.fov)
+            inserted := true
+        FovItems.Push(v)
+    }
+    if (!inserted)
+        FovItems.Push(cfg.fov)
+
+    AspectItems := []
+    inserted := false
+    for i, v in AspectPresets
+    {
+        if (!inserted && cfg.aspect < v)
+            AspectItems.Push(cfg.aspect), inserted := true
+        if (v = cfg.aspect)
+            inserted := true
+        AspectItems.Push(v)
+    }
+    if (!inserted)
+        AspectItems.Push(cfg.aspect)
+
+    Menu, FovValMenu, Add
+    Menu, FovValMenu, DeleteAll
+    for i, v in FovItems
+        Menu, FovValMenu, Add, %v%, FovPresetSel
+
+    Menu, AspectMenu, Add
+    Menu, AspectMenu, DeleteAll
+    for i, v in AspectItems
+    {
+        label := AspectLabel(v)
+        Menu, AspectMenu, Add, %label%, AspectPresetSel
+    }
+
+    Menu, FovMenu, Add
+    Menu, FovMenu, DeleteAll
+    Menu, FovMenu, Add, Enabled, FovToggleSel
+    Menu, FovMenu, Add
+    Menu, FovMenu, Add, Field of view, :FovValMenu
+    Menu, FovMenu, Add, Aspect ratio, :AspectMenu
+
+    Menu, Tray, Icon, %A_ScriptDir%\data\icon.ico
+    Menu, Tray, Tip, convars
+    Menu, Tray, NoStandard
+    Menu, Tray, DeleteAll
+    Menu, Tray, Add, FOV Changer, :FovMenu
+    Menu, Tray, Add, Direct Lighting, TrayDL
+    Menu, Tray, Add, Skybox, TraySB
+    Menu, Tray, Add
+    Menu, Tray, Add, Open settings.json, OpenSettings
+    Menu, Tray, Add, Reload, ReloadScript
+    Menu, Tray, Add, Exit, DoExit
+}
+
+UpdateTray()
+{
+    global cfg, DL, SB, FovItems, AspectItems
+
+    if (cfg.fov_enabled)
+        Menu, FovMenu, Check, Enabled
+    else
+        Menu, FovMenu, UnCheck, Enabled
+
+    for i, v in FovItems
+    {
+        if (v = cfg.fov)
+            Menu, FovValMenu, Check, %v%
+        else
+            Menu, FovValMenu, UnCheck, %v%
+    }
+    for i, v in AspectItems
+    {
+        label := AspectLabel(v)
+        if (v = cfg.aspect)
+            Menu, AspectMenu, Check, %label%
+        else
+            Menu, AspectMenu, UnCheck, %label%
+    }
+
+    if (DL.enabled)
+        Menu, Tray, Check, Direct Lighting
+    else
+        Menu, Tray, UnCheck, Direct Lighting
+    if (SB.enabled)
+        Menu, Tray, Check, Skybox
+    else
+        Menu, Tray, UnCheck, Skybox
+}
+
+BindHotkeys()
+{
+    global cfg
+    keys := { key_fov: "FovHotkey", key_directlighting: "DLHotkey", key_skybox: "SBHotkey", key_exit: "ExitHotkey" }
+    for k, label in keys
+    {
+        key := cfg[k]
+        if (key = "")
+            continue
+        Try
+            Hotkey, %key%, %label%, On
+        Catch
+            LogConvar("hotkey '" key "' for " k " is invalid — skipped")
+    }
+}
+
+FileDelete, %LogFile%
+SettingsLoad()
+LogConvar("=== convars.ahk started — " cfg.key_fov ": FOV, " cfg.key_directlighting ": Direct Lighting, " cfg.key_skybox ": Skybox, " cfg.key_exit ": Exit ===")
+
+TrayTip, convars, % cfg.key_fov " - FOV | " cfg.key_directlighting " - Direct Lighting | " cfg.key_skybox " - Skybox | " cfg.key_exit " - Exit", , 1
+
+OnExit, OnExitSub
+
+BuildTrayMenu()
+UpdateTray()
+BindHotkeys()
+OnMessage(0x404, "TrayIconMsg")
+
+Loop
+{
+    Process, Exist, deadlock.exe
+    pid := ErrorLevel
+
+    if (pid)
+    {
+        if (!IsObject(mem) || pid != lastPID)
+        {
+            if (A_TickCount >= nextRetry)
+            {
+                mem := new _ClassMemory(gameEXE)
+                if (IsObject(mem))
+                {
+                    lastPID := pid
+                    nextRetry := 0
+                    if (InitEngine())
+                    {
+                        ResolveConVar(DL)
+                        ResolveConVar(SB)
+                        ResolveFov()
+                        DL.enabled := DL.resolved && cfg.directlighting_off
+                        SB.enabled := SB.resolved && cfg.skybox_off
+                    }
+                    UpdateTray()
+                }
+                else
+                {
+                    nextRetry := A_TickCount + 2000
+                    LogConvar("OpenProcess failed (pid=" pid ") — игра запущена под админом?")
+                }
+            }
+        }
+        else if (engineBase)
+        {
+            TickConVar(DL)
+            TickConVar(SB)
+            TickFov()
+        }
+    }
+    else
+    {
+        if (IsObject(mem) || lastPID)
+        {
+            mem := ""
+            lastPID := 0
+            nextRetry := 0
+            engineBase := 0
+            engineSize := 0
+            ResetState()
+            UpdateTray()
+        }
+    }
+    Sleep, 100
+}
+
+return
+
+FovHotkey:
+    ToggleFov()
+return
+
+DLHotkey:
+    ToggleDL()
+return
+
+SBHotkey:
+    ToggleSB()
+return
+
+ExitHotkey:
+    ExitApp
+return
+
+FovToggleSel:
+    ToggleFov()
+    ReshowTray()
+return
+
+FovPresetSel:
+    SetFov(A_ThisMenuItem + 0)
+    ReshowTray()
+return
+
+AspectPresetSel:
+    SetAspect((A_ThisMenuItem = "Native") ? 0 : Round(A_ThisMenuItem * 100))
+    ReshowTray()
+return
+
+TrayDL:
+    ToggleDL()
+    ReshowTray()
+return
+
+TraySB:
+    ToggleSB()
+    ReshowTray()
+return
+
+ShowTrayMenu:
+    Menu, Tray, Show, %trayX%, %trayY%
+return
+
+OpenSettings:
+    Run, notepad.exe "%SettingsFile%"
+return
+
+DoExit:
+    ExitApp
+return
+
+ReloadScript:
+    Reload
+return
+
+OnExitSub:
+    Try
+    {
+        RestoreConVar(DL)
+        RestoreConVar(SB)
+        if (FovApplied)
+            FovOff()
+    }
+    DllCall("Winmm\timeEndPeriod", "UInt", 1)
+ExitApp
+return
