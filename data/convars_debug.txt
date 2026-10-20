@@ -1,0 +1,1 @@
+[2026-10-20 23:21:45] === convars.ahk started - convars=54 exit=F8 gui=Insert ===
